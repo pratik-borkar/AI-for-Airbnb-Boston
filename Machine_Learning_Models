@@ -1,0 +1,806 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # Stepwise Regression
+
+# In[ ]:
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+import numpy as np
+
+# Calculate Mean Absolute Percentage Error (MAPE)
+def calculate_mape(actual, predicted):
+    # Replace zero actual values with NaN to avoid division by zero
+    actual = np.where(actual == 0, np.nan, actual)
+
+    # Calculate MAPE and replace NaN with 0
+    mape = np.nanmean(np.abs((actual - predicted) / actual)) * 100
+    return np.nan_to_num(mape)
+
+def stepwise_selection(X, y, initial_list=[], threshold_in=0.01, threshold_out=0.05, verbose=True):
+    included = list(initial_list)
+    while True:
+        changed = False
+        # Forward step
+        excluded = list(set(X.columns) - set(included))
+        new_pval = pd.Series(index=excluded, dtype=float)
+        for new_column in excluded:
+            model = sm.OLS(y, sm.add_constant(X[included + [new_column]])).fit()
+            new_pval[new_column] = model.pvalues[new_column]
+        best_pval = new_pval.min()
+        if best_pval < threshold_in:
+            best_feature = new_pval.idxmin()
+            included.append(best_feature)
+            changed = True
+            if verbose:
+                print(f'Add  {best_feature} with p-value {best_pval}')
+
+        # Backward step
+        model = sm.OLS(y, sm.add_constant(X[included])).fit()
+        # use all coefs except intercept
+        pvalues = model.pvalues.iloc[1:]
+        worst_pval = pvalues.max() # null if pvalues is empty
+        if worst_pval > threshold_out:
+            changed = True
+            worst_feature = pvalues.idxmax()
+            included.remove(worst_feature)
+            if verbose:
+                print(f'Drop {worst_feature} with p-value {worst_pval}')
+        if not changed:
+            break
+    return included
+
+# Load the dataset
+data = pd.read_csv("airbnb_Boston.csv")
+
+# Define categorical and continuous variables
+categorical_vars = ['Evaluation Period', 'host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'Number of Reviews', 'revenue', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# Combine categorical and continuous variables
+independent_vars = continuous_vars + categorical_vars
+
+# One-hot encode categorical variables and standardize continuous variables
+X = pd.get_dummies(data[independent_vars], columns=categorical_vars)
+scaler = StandardScaler()
+X[continuous_vars] = scaler.fit_transform(X[continuous_vars])
+
+# Define the target variable
+y = data['occupancy_rate']
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Perform forward stepwise regression
+selected_features = stepwise_selection(X_train, y_train)
+
+# Fit a linear regression model with selected features
+X_train_selected = X_train[selected_features]
+X_train_const = sm.add_constant(X_train_selected)
+model = sm.OLS(y_train, X_train_const).fit()
+
+# Print the summary of the model
+print(model.summary())
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the training set
+y_train_pred = model.predict(X_train_const)
+mape_train = calculate_mape(y_train, y_train_pred)
+print(f"MAPE (Training Set): {mape_train:.4f}%")
+
+# Make predictions on the validation set
+X_val_selected = X_val[selected_features]
+X_val_const = sm.add_constant(X_val_selected)
+y_val_pred = model.predict(X_val_const)
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the validation set
+mape_val = calculate_mape(y_val, y_val_pred)
+print(f"MAPE (Validation Set): {mape_val:.4f}%")
+
+
+# ## January
+
+# In[ ]:
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+import numpy as np
+
+# Calculate Mean Absolute Percentage Error (MAPE)
+def calculate_mape(actual, predicted):
+    # Replace zero actual values with NaN to avoid division by zero
+    actual = np.where(actual == 0, np.nan, actual)
+
+    # Calculate MAPE and replace NaN with 0
+    mape = np.nanmean(np.abs((actual - predicted) / actual)) * 100
+    return np.nan_to_num(mape)
+
+def stepwise_selection(X, y, initial_list=[], threshold_in=0.01, threshold_out=0.05, verbose=True):
+    included = list(initial_list)
+    while True:
+        changed = False
+        # Forward step
+        excluded = list(set(X.columns) - set(included))
+        new_pval = pd.Series(index=excluded, dtype=float)
+        for new_column in excluded:
+            model = sm.OLS(y, sm.add_constant(X[included + [new_column]])).fit()
+            new_pval[new_column] = model.pvalues[new_column]
+        best_pval = new_pval.min()
+        if best_pval < threshold_in:
+            best_feature = new_pval.idxmin()
+            included.append(best_feature)
+            changed = True
+            if verbose:
+                print(f'Add  {best_feature} with p-value {best_pval}')
+
+        # Backward step
+        model = sm.OLS(y, sm.add_constant(X[included])).fit()
+        # use all coefs except intercept
+        pvalues = model.pvalues.iloc[1:]
+        worst_pval = pvalues.max() # null if pvalues is empty
+        if worst_pval > threshold_out:
+            changed = True
+            worst_feature = pvalues.idxmax()
+            included.remove(worst_feature)
+            if verbose:
+                print(f'Drop {worst_feature} with p-value {worst_pval}')
+        if not changed:
+            break
+    return included
+
+# Load the dataset
+data = pd.read_csv("airbnb_Boston.csv")
+
+# Filter data where Evaluation Period is 0
+data_filtered = data[data['Evaluation Period'] == 0]
+
+# Define categorical and continuous variables
+categorical_vars = ['host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'Number of Reviews', 'revenue', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# Combine categorical and continuous variables
+independent_vars = continuous_vars + categorical_vars
+
+# One-hot encode categorical variables and standardize continuous variables
+X = pd.get_dummies(data_filtered[independent_vars], columns=categorical_vars)
+scaler = StandardScaler()
+X[continuous_vars] = scaler.fit_transform(X[continuous_vars])
+
+# Define the target variable
+y = data_filtered['occupancy_rate']
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Perform forward stepwise regression
+selected_features = stepwise_selection(X_train, y_train)
+
+# Fit a linear regression model with selected features
+X_train_selected = X_train[selected_features]
+X_train_const = sm.add_constant(X_train_selected)
+model = sm.OLS(y_train, X_train_const).fit()
+
+# Print the summary of the model
+print(model.summary())
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the training set
+y_train_pred = model.predict(X_train_const)
+mape_train = calculate_mape(y_train, y_train_pred)
+print(f"MAPE (Training Set): {mape_train:.4f}%")
+
+# Make predictions on the validation set
+X_val_selected = X_val[selected_features]
+X_val_const = sm.add_constant(X_val_selected)
+y_val_pred = model.predict(X_val_const)
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the validation set
+mape_val = calculate_mape(y_val, y_val_pred)
+print(f"MAPE (Validation Set): {mape_val:.4f}%")
+
+
+# ## April
+
+# In[ ]:
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+import numpy as np
+
+# Calculate Mean Absolute Percentage Error (MAPE)
+def calculate_mape(actual, predicted):
+    # Replace zero actual values with NaN to avoid division by zero
+    actual = np.where(actual == 0, np.nan, actual)
+
+    # Calculate MAPE and replace NaN with 0
+    mape = np.nanmean(np.abs((actual - predicted) / actual)) * 100
+    return np.nan_to_num(mape)
+
+def stepwise_selection(X, y, initial_list=[], threshold_in=0.01, threshold_out=0.05, verbose=True):
+    included = list(initial_list)
+    while True:
+        changed = False
+        # Forward step
+        excluded = list(set(X.columns) - set(included))
+        new_pval = pd.Series(index=excluded, dtype=float)
+        for new_column in excluded:
+            model = sm.OLS(y, sm.add_constant(X[included + [new_column]])).fit()
+            new_pval[new_column] = model.pvalues[new_column]
+        best_pval = new_pval.min()
+        if best_pval < threshold_in:
+            best_feature = new_pval.idxmin()
+            included.append(best_feature)
+            changed = True
+            if verbose:
+                print(f'Add  {best_feature} with p-value {best_pval}')
+
+        # Backward step
+        model = sm.OLS(y, sm.add_constant(X[included])).fit()
+        # use all coefs except intercept
+        pvalues = model.pvalues.iloc[1:]
+        worst_pval = pvalues.max() # null if pvalues is empty
+        if worst_pval > threshold_out:
+            changed = True
+            worst_feature = pvalues.idxmax()
+            included.remove(worst_feature)
+            if verbose:
+                print(f'Drop {worst_feature} with p-value {worst_pval}')
+        if not changed:
+            break
+    return included
+
+# Load the dataset
+data = pd.read_csv("airbnb_Boston.csv")
+
+# Filter data where Evaluation Period is 1
+data_filtered = data[data['Evaluation Period'] == 1]
+
+# Define categorical and continuous variables
+categorical_vars = ['host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'Number of Reviews', 'revenue', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# Combine categorical and continuous variables
+independent_vars = continuous_vars + categorical_vars
+
+# One-hot encode categorical variables and standardize continuous variables
+X = pd.get_dummies(data_filtered[independent_vars], columns=categorical_vars)
+scaler = StandardScaler()
+X[continuous_vars] = scaler.fit_transform(X[continuous_vars])
+
+# Define the target variable
+y = data_filtered['occupancy_rate']
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Perform forward stepwise regression
+selected_features = stepwise_selection(X_train, y_train)
+
+# Fit a linear regression model with selected features
+X_train_selected = X_train[selected_features]
+X_train_const = sm.add_constant(X_train_selected)
+model = sm.OLS(y_train, X_train_const).fit()
+
+# Print the summary of the model
+print(model.summary())
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the training set
+y_train_pred = model.predict(X_train_const)
+mape_train = calculate_mape(y_train, y_train_pred)
+print(f"MAPE (Training Set): {mape_train:.4f}%")
+
+# Make predictions on the validation set
+X_val_selected = X_val[selected_features]
+X_val_const = sm.add_constant(X_val_selected)
+y_val_pred = model.predict(X_val_const)
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the validation set
+mape_val = calculate_mape(y_val, y_val_pred)
+print(f"MAPE (Validation Set): {mape_val:.4f}%")
+
+
+# ## July
+
+# In[ ]:
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+import numpy as np
+
+# Calculate Mean Absolute Percentage Error (MAPE)
+def calculate_mape(actual, predicted):
+    # Replace zero actual values with NaN to avoid division by zero
+    actual = np.where(actual == 0, np.nan, actual)
+
+    # Calculate MAPE and replace NaN with 0
+    mape = np.nanmean(np.abs((actual - predicted) / actual)) * 100
+    return np.nan_to_num(mape)
+
+def stepwise_selection(X, y, initial_list=[], threshold_in=0.01, threshold_out=0.05, verbose=True):
+    included = list(initial_list)
+    while True:
+        changed = False
+        # Forward step
+        excluded = list(set(X.columns) - set(included))
+        new_pval = pd.Series(index=excluded, dtype=float)
+        for new_column in excluded:
+            model = sm.OLS(y, sm.add_constant(X[included + [new_column]])).fit()
+            new_pval[new_column] = model.pvalues[new_column]
+        best_pval = new_pval.min()
+        if best_pval < threshold_in:
+            best_feature = new_pval.idxmin()
+            included.append(best_feature)
+            changed = True
+            if verbose:
+                print(f'Add  {best_feature} with p-value {best_pval}')
+
+        # Backward step
+        model = sm.OLS(y, sm.add_constant(X[included])).fit()
+        # use all coefs except intercept
+        pvalues = model.pvalues.iloc[1:]
+        worst_pval = pvalues.max() # null if pvalues is empty
+        if worst_pval > threshold_out:
+            changed = True
+            worst_feature = pvalues.idxmax()
+            included.remove(worst_feature)
+            if verbose:
+                print(f'Drop {worst_feature} with p-value {worst_pval}')
+        if not changed:
+            break
+    return included
+
+# Load the dataset
+data = pd.read_csv("airbnb_Boston.csv")
+
+# Filter data where Evaluation Period is 2
+data_filtered = data[data['Evaluation Period'] == 2]
+
+# Define categorical and continuous variables
+categorical_vars = ['host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'Number of Reviews', 'revenue', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# Combine categorical and continuous variables
+independent_vars = continuous_vars + categorical_vars
+
+# One-hot encode categorical variables and standardize continuous variables
+X = pd.get_dummies(data_filtered[independent_vars], columns=categorical_vars)
+scaler = StandardScaler()
+X[continuous_vars] = scaler.fit_transform(X[continuous_vars])
+
+# Define the target variable
+y = data_filtered['occupancy_rate']
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Perform forward stepwise regression
+selected_features = stepwise_selection(X_train, y_train)
+
+# Fit a linear regression model with selected features
+X_train_selected = X_train[selected_features]
+X_train_const = sm.add_constant(X_train_selected)
+model = sm.OLS(y_train, X_train_const).fit()
+
+# Print the summary of the model
+print(model.summary())
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the training set
+y_train_pred = model.predict(X_train_const)
+mape_train = calculate_mape(y_train, y_train_pred)
+print(f"MAPE (Training Set): {mape_train:.4f}%")
+
+# Make predictions on the validation set
+X_val_selected = X_val[selected_features]
+X_val_const = sm.add_constant(X_val_selected)
+y_val_pred = model.predict(X_val_const)
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the validation set
+mape_val = calculate_mape(y_val, y_val_pred)
+print(f"MAPE (Validation Set): {mape_val:.4f}%")
+
+
+# ## October
+
+# In[ ]:
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+import numpy as np
+
+# Calculate Mean Absolute Percentage Error (MAPE)
+def calculate_mape(actual, predicted):
+    # Replace zero actual values with NaN to avoid division by zero
+    actual = np.where(actual == 0, np.nan, actual)
+
+    # Calculate MAPE and replace NaN with 0
+    mape = np.nanmean(np.abs((actual - predicted) / actual)) * 100
+    return np.nan_to_num(mape)
+
+def stepwise_selection(X, y, initial_list=[], threshold_in=0.01, threshold_out=0.05, verbose=True):
+    included = list(initial_list)
+    while True:
+        changed = False
+        # Forward step
+        excluded = list(set(X.columns) - set(included))
+        new_pval = pd.Series(index=excluded, dtype=float)
+        for new_column in excluded:
+            model = sm.OLS(y, sm.add_constant(X[included + [new_column]])).fit()
+            new_pval[new_column] = model.pvalues[new_column]
+        best_pval = new_pval.min()
+        if best_pval < threshold_in:
+            best_feature = new_pval.idxmin()
+            included.append(best_feature)
+            changed = True
+            if verbose:
+                print(f'Add  {best_feature} with p-value {best_pval}')
+
+        # Backward step
+        model = sm.OLS(y, sm.add_constant(X[included])).fit()
+        # use all coefs except intercept
+        pvalues = model.pvalues.iloc[1:]
+        worst_pval = pvalues.max() # null if pvalues is empty
+        if worst_pval > threshold_out:
+            changed = True
+            worst_feature = pvalues.idxmax()
+            included.remove(worst_feature)
+            if verbose:
+                print(f'Drop {worst_feature} with p-value {worst_pval}')
+        if not changed:
+            break
+    return included
+
+# Load the dataset
+data = pd.read_csv("airbnb_Boston.csv")
+
+# Filter data where Evaluation Period is 3
+data_filtered = data[data['Evaluation Period'] == 3]
+
+# Define categorical and continuous variables
+categorical_vars = ['host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'Number of Reviews', 'revenue', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# Combine categorical and continuous variables
+independent_vars = continuous_vars + categorical_vars
+
+# One-hot encode categorical variables and standardize continuous variables
+X = pd.get_dummies(data_filtered[independent_vars], columns=categorical_vars)
+scaler = StandardScaler()
+X[continuous_vars] = scaler.fit_transform(X[continuous_vars])
+
+# Define the target variable
+y = data_filtered['occupancy_rate']
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Perform forward stepwise regression
+selected_features = stepwise_selection(X_train, y_train)
+
+# Fit a linear regression model with selected features
+X_train_selected = X_train[selected_features]
+X_train_const = sm.add_constant(X_train_selected)
+model = sm.OLS(y_train, X_train_const).fit()
+
+# Print the summary of the model
+print(model.summary())
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the training set
+y_train_pred = model.predict(X_train_const)
+mape_train = calculate_mape(y_train, y_train_pred)
+print(f"MAPE (Training Set): {mape_train:.4f}%")
+
+# Make predictions on the validation set
+X_val_selected = X_val[selected_features]
+X_val_const = sm.add_constant(X_val_selected)
+y_val_pred = model.predict(X_val_const)
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the validation set
+mape_val = calculate_mape(y_val, y_val_pred)
+print(f"MAPE (Validation Set): {mape_val:.4f}%")
+
+
+# In[ ]:
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import statsmodels.api as sm
+import numpy as np
+
+# Calculate Mean Absolute Percentage Error (MAPE)
+def calculate_mape(actual, predicted):
+    # Replace zero actual values with NaN to avoid division by zero
+    actual = np.where(actual == 0, np.nan, actual)
+
+    # Calculate MAPE and replace NaN with 0
+    mape = np.nanmean(np.abs((actual - predicted) / actual)) * 100
+    return np.nan_to_num(mape)
+
+def stepwise_selection(X, y, initial_list=[], threshold_in=0.01, threshold_out=0.05, verbose=True):
+    included = list(initial_list)
+    while True:
+        changed = False
+        # Forward step
+        excluded = list(set(X.columns) - set(included))
+        new_pval = pd.Series(index=excluded, dtype=float)
+        for new_column in excluded:
+            model = sm.OLS(y, sm.add_constant(X[included + [new_column]])).fit()
+            new_pval[new_column] = model.pvalues[new_column]
+        best_pval = new_pval.min()
+        if best_pval < threshold_in:
+            best_feature = new_pval.idxmin()
+            included.append(best_feature)
+            changed = True
+            if verbose:
+                print(f'Add  {best_feature} with p-value {best_pval}')
+
+        # Backward step
+        model = sm.OLS(y, sm.add_constant(X[included])).fit()
+        # use all coefs except intercept
+        pvalues = model.pvalues.iloc[1:]
+        worst_pval = pvalues.max()  # null if pvalues is empty
+        if worst_pval > threshold_out:
+            changed = True
+            worst_feature = pvalues.idxmax()
+            included.remove(worst_feature)
+            if verbose:
+                print(f'Drop {worst_feature} with p-value {worst_pval}')
+        if not changed:
+            break
+
+    # Add interaction terms
+    for i in range(len(included)):
+        for j in range(i + 1, len(included)):
+            interaction_term = f"{included[i]}_{included[j]}"
+            X[interaction_term] = X[included[i]] * X[included[j]]
+
+    return included
+
+# Load the dataset
+data = pd.read_csv("airbnb_Boston.csv")
+
+# Define categorical and continuous variables
+categorical_vars = ['Evaluation Period', 'host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'Number of Reviews', 'revenue', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# Combine categorical and continuous variables
+independent_vars = continuous_vars + categorical_vars
+
+# One-hot encode categorical variables and standardize continuous variables
+X = pd.get_dummies(data[independent_vars], columns=categorical_vars)
+scaler = StandardScaler()
+X[continuous_vars] = scaler.fit_transform(X[continuous_vars])
+
+# Define the target variable
+y = data['occupancy_rate']
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Perform forward stepwise regression
+selected_features = stepwise_selection(X_train, y_train)
+
+# Add interaction terms to the training set
+for i in range(len(selected_features)):
+    for j in range(i + 1, len(selected_features)):
+        interaction_term = f"{selected_features[i]}_{selected_features[j]}"
+        X_train[interaction_term] = X_train[selected_features[i]] * X_train[selected_features[j]]
+
+# Fit a linear regression model with selected features and interaction terms
+X_train_const = sm.add_constant(X_train)
+model = sm.OLS(y_train, X_train_const).fit()
+
+# Print the summary of the model
+print(model.summary())
+
+# Add interaction terms to the validation set
+for i in range(len(selected_features)):
+    for j in range(i + 1, len(selected_features)):
+        interaction_term = f"{selected_features[i]}_{selected_features[j]}"
+        X_val[interaction_term] = X_val[selected_features[i]] * X_val[selected_features[j]]
+
+# Make predictions on the validation set
+X_val_const = sm.add_constant(X_val)
+y_val_pred = model.predict(X_val_const)
+
+# Calculate Mean Absolute Percentage Error (MAPE) for the validation set
+mape_val = calculate_mape(y_val, y_val_pred)
+print(f"MAPE (Validation Set): {mape_val:.4f}%")
+
+
+# # Random Forest
+
+# In[ ]:
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_percentage_error
+
+# Load the dataset
+data = pd.read_csv("airbnb_Boston.csv")
+
+# Define categorical and continuous variables
+categorical_vars = ['Evaluation Period', 'host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'Number of Reviews', 'revenue', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# Define target variable
+y = data['occupancy_rate']
+
+# Define features
+X = data[categorical_vars + continuous_vars]
+
+# Split the data into training and validation sets with 70% training size
+X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Create a preprocessor to one-hot encode categorical variables and standardize continuous variables
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', StandardScaler(), continuous_vars),
+        ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_vars)
+    ])
+
+# Create a pipeline with preprocessor and regression model (Random Forest Regressor in this case)
+model = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('regressor', RandomForestRegressor(random_state=42))
+])
+
+# Fit the model on training data
+model.fit(X_train, y_train)
+
+# Make predictions on the training set
+y_train_pred = model.predict(X_train)
+
+# Make predictions on the validation set
+y_valid_pred = model.predict(X_valid)
+
+# Evaluate the model using MAPE for both training and validation sets
+mape_train = mean_absolute_percentage_error(y_train, y_train_pred)
+mape_valid = mean_absolute_percentage_error(y_valid, y_valid_pred)
+
+# Print the model summary
+print("Model Summary:")
+print(model.named_steps['regressor'])  # Assuming RandomForestRegressor is used
+
+# Print MAPE for training and validation sets in percentage
+print(f'\nMAPE on training set: {mape_train * 100:.2f}%')
+print(f'MAPE on validation set: {mape_valid * 100:.2f}%')
+
+
+# # Gradient Boosting
+
+# In[ ]:
+
+
+import pandas as pd
+import lightgbm as lgb
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+
+# Load the dataset
+df = pd.read_csv("airbnb_Boston.csv")
+
+# Define target variable and input variables
+target_variable = 'occupancy_rate'
+categorical_vars = ['Evaluation Period', 'host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'revenue', 'Number of Reviews', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# One-hot encode categorical variables
+df = pd.get_dummies(df, columns=categorical_vars)
+
+# Split the data into training and validation sets
+train_data, valid_data, train_labels, valid_labels = train_test_split(df.drop(target_variable, axis=1), df[target_variable], test_size=0.3, random_state=42)
+
+# Create LightGBM dataset
+train_dataset = lgb.Dataset(train_data, label=train_labels)
+
+# Define parameters for the model
+params = {
+    'objective': 'regression',
+    'metric': 'mae',
+    'boosting_type': 'gbdt',
+    'num_leaves': 30,
+    'learning_rate': 0.1,
+    'feature_fraction': 1.0
+}
+
+# Train the LightGBM model
+model = lgb.train(params, train_dataset, num_boost_round=100)
+
+# Make predictions on training and validation sets
+train_preds = model.predict(train_data)
+valid_preds = model.predict(valid_data)
+
+# Calculate mean absolute percentage error for training and validation sets
+mape_train = mean_absolute_error(train_labels, train_preds) / abs(train_labels).mean() * 100
+mape_valid = mean_absolute_error(valid_labels, valid_preds) / abs(valid_labels).mean() * 100
+
+print(f"Mean Absolute Percentage Error (MAPE) for training set: {mape_train:.2f}%")
+print(f"Mean Absolute Percentage Error (MAPE) for validation set: {mape_valid:.2f}%")
+
+
+# In[ ]:
+
+
+import pandas as pd
+import lightgbm as lgb
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import make_scorer, mean_absolute_error
+
+# Load the dataset
+df = pd.read_csv("airbnb_Boston.csv")
+
+# Define target variable and input variables
+target_variable = 'occupancy_rate'
+categorical_vars = ['Evaluation Period', 'host_is_superhost_in_period', 'superhost_change', 'Property Type', 'Listing Type', 'Neighborhood', 'Pets Allowed', 'Instantbook Enabled']
+continuous_vars = ['rating_ave_pastYear', 'numReviews_pastYear', 'numCancel_pastYear', 'num_5_star_Rev_pastYear', 'prop_5_StarReviews_pastYear', 'numReservedDays_pastYear', 'numReserv_pastYear', 'Bedrooms', 'Bathrooms', 'Max Guests', 'Cleaning Fee (USD)', 'Minimum Stay', 'Number of Photos', 'Nightly Rate', 'Number of Reviews', 'revenue', 'tract_total_pop', 'tract_white_perc', 'tract_black_perc', 'tract_asian_perc', 'tract_housing_units', 'tract_count_obs', 'tract_unique_prices', 'tract_superhosts', 'tract_price_variance', 'revenue_period_city', 'revenue_period_tract', 'tract_booking_share', 'tract_revenue_share']
+
+# One-hot encode categorical variables
+df = pd.get_dummies(df, columns=categorical_vars)
+
+# Split the data into training and validation sets
+train_data, valid_data, train_labels, valid_labels = train_test_split(df.drop(target_variable, axis=1), df[target_variable], test_size=0.3, random_state=42)
+
+# Define parameters for the model
+params = {
+    'objective': ['regression'],
+    'boosting_type': ['gbdt'],
+    'num_leaves': [15, 31, 50],
+    'learning_rate': [0.01, 0.05, 0.1],
+    'feature_fraction': [0.8, 0.9, 1.0],
+    'metric': ['mae']
+}
+
+# Create the LightGBM model
+model = lgb.LGBMRegressor(objective='regression')
+
+# Define the grid search with cross-validation
+grid_search = GridSearchCV(
+    estimator=model,
+    param_grid=params,
+    scoring=make_scorer(mean_absolute_error),
+    cv=5,
+    verbose=1,
+    n_jobs=-1
+)
+
+# Perform the grid search
+grid_search.fit(train_data, train_labels)
+
+# Print the best parameters and corresponding MAE
+print("Best Parameters: ", grid_search.best_params_)
+print("Best MAE: ", grid_search.best_score_)
+
+# Get the best model
+best_model = grid_search.best_estimator_
+
+# Make predictions on training and validation sets
+train_preds = best_model.predict(train_data)
+valid_preds = best_model.predict(valid_data)
+
+# Calculate mean absolute percentage error for training and validation sets
+mape_train = mean_absolute_error(train_labels, train_preds) / abs(train_labels).mean() * 100
+mape_valid = mean_absolute_error(valid_labels, valid_preds) / abs(valid_labels).mean() * 100
+
+print(f"Mean Absolute Percentage Error (MAPE) for training set: {mape_train:.2f}%")
+print(f"Mean Absolute Percentage Error (MAPE) for validation set: {mape_valid:.2f}%")
